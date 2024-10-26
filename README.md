@@ -2,7 +2,10 @@
 
 ## Project Motivation
 
-![Inference_example_1](images/Inference_example.gif)
+<p float="center">
+<img src="/images/Inference_example.gif" width="40%" height="40%"/>
+<img src="images/Inference_example_2.gif" width="40%" height="40%"/>
+</p>
 
 I was inspired to simplify the process of managing and cataloging my MTG cards for trading purposes. Manually updating my collection was time-consuming, so I decided to automate it. Instead of just digitizing my cards by hand, I wanted to develop a program that could recognize MTG cards directly from photos or video frames.
 
