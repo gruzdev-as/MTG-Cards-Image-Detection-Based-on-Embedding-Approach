@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Card Recognition</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <style>
+        h1, table {
+            text-align: center;
+        }
+        table {
+            width: 80%;
+            margin: 20px auto;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+    </style>
+</head>
+<body>
+    <h1>Наведите камеру на карты. Зафиксируйте изображение и ждите</h1>
+    
+    <!-- Video stream -->
+    <div style="text-align: center;">
+        <img src="{{ url_for('video_feed') }}" width="480" height="640">
+    </div>
+
+    <!-- Cards recognized -->
+    <h2 style="text-align: center;">Cards recognized</h2>
+    <table id="card-table">
+        <thead>
+            <tr>
+                <th>Card Name</th>
+                <th>Card Number</th>
+                <th>Card Set</th>
+                <th>Card Language</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Dynamically populated table rows -->
+        </tbody>
+    </table>
+
+    <script>
+        // Initialize SocketIO connection
+        var socket = io();
+
+        // Listen for 'new_card' event from the backend
+        socket.on('new_card', function(card) {
+            var row = "<tr>" +
+                "<td>" + card.card_name + "</td>" +
+                "<td>" + card.card_number + "</td>" +
+                "<td>" + card.card_set + "</td>" +
+                "<td>" + card.card_language + "</td>" +
+                "</tr>";
+            $("#card-table tbody").append(row);  // Append the new card to the table
+        });
+    </script>
+</body>
+</html>
