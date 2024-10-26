@@ -2,7 +2,7 @@
 
 ## Project Motivation
 
-![Inference_example_1](images\Inference_example.gif)
+![Inference_example_1](images/Inference_example.gif)
 
 I was inspired to simplify the process of managing and cataloging my MTG cards for trading purposes. Manually updating my collection was time-consuming, so I decided to automate it. Instead of just digitizing my cards by hand, I wanted to develop a program that could recognize MTG cards directly from photos or video frames.
 
@@ -58,12 +58,12 @@ To detect cards within an image or video frame, we avoid neural networks by usin
 
 We identify rectangular shapes, likely MTG cards, by converting images to grayscale, applying adaptive thresholding, and then detecting contours. The contours are filtered by size and shape to approximate the dimensions of a card, ensuring reliable detection in various lighting conditions. This process can be described as follows: 
 
-![Process_pipeline](images\process_pipeline.png)
+![Process_pipeline](images/process_pipeline.png)
 
 ### Perspective Correction:
 
 Once a card is detected, we crop and warp the detected region to correct its perspective, preparing it for accurate recognition. The example of the result is: 
-![Warping](images\warped.png)
+![Warping](images/warped.png)
 
 ### Embedding Generation:
 
