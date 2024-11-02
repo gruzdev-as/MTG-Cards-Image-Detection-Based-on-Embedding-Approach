@@ -1,8 +1,13 @@
 import argparse
+import logging
+import os
 import threading
 import queue
 
 import cv2
+
+from pathlib import Path
+from datetime import datetime
 
 from flask import Flask, render_template, Response
 from flask_socketio import SocketIO, emit
@@ -11,15 +16,31 @@ from model_inference import Embedding_generator
 from image_processing import Image_processer
 from search import HNSW_search_tool
 
+### FLASK 
 app = Flask(__name__)
 socketio = SocketIO(app)
 
+### LOGGING
+log_dir = "logs"
+os.makedirs(log_dir, exist_ok=True)
+log_file = os.path.join(log_dir, f"{datetime.now().strftime('%Y-%m-%d')}.log")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler(log_file),
+    ]
+)
+
+### ARGPARSE
 parser = argparse.ArgumentParser(description="MTG Card Detector")
 parser.add_argument("-cip", "--camera_ip", type=str, default='192.168.0.101:8080', help="Camera IP with the port clarified")
+parser.add_argument("-hnsw", "--hnsw_folder", type=Path, default=Path(r'data\embeddings'), help="A folder with HNSW bin file and metadata json")
 args = parser.parse_args()
 CAMERA_IP_ADDRESS = args.camera_ip
-print(CAMERA_IP_ADDRESS)
+HNSW_FOLDER = args.hnsw_folder
 
+### OTHER 
 CAMERA_URL = f'http://{CAMERA_IP_ADDRESS}/video'
 
 detection_frame_queue = queue.Queue(maxsize=1)
@@ -35,19 +56,22 @@ def get_contours_if_stable():
         contour_image, contours = image_processer.find_big_contours(frame)
         
         if image_processer.similarity > 0.85 and contours:
-            
-            image_processer.camera_stable_flag = True
-            freezing_frame = cv2.blur(frame, (25, 25), 0)
-            freezing_frame = cv2.putText(freezing_frame, 'Processing', (frame.shape[1] // 4, frame.shape[0] // 2),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 3, (255, 255, 255), 2, cv2.LINE_AA)
-            processed_frame_queue.put(freezing_frame)
+            try:
+                image_processer.camera_stable_flag = True
+                freezing_frame = cv2.blur(frame, (25, 25), 0)
+                freezing_frame = cv2.putText(freezing_frame, 'Processing', (frame.shape[1] // 4, frame.shape[0] // 2),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 3, (255, 255, 255), 2, cv2.LINE_AA)
+                processed_frame_queue.put(freezing_frame)
 
-            warped_images = [image_processer.crop_warp_image_from_contour(frame, contour) for contour in contours]
-            embeddings = model_interface.generate_image_embedding(warped_images)
-            results = [hnsw_search.search_in_hnsw(embedding, k=200)[0] for embedding in embeddings]
-            [results_queue.put(result) for result in results]
-            image_processer.camera_stable_flag = False
-            image_processer.sliding_window.clear()
+                warped_images = [image_processer.crop_warp_image_from_contour(frame, contour) for contour in contours]
+                embeddings = model_interface.generate_image_embedding(warped_images)
+                results = [hnsw_search.search_in_hnsw(embedding, k=200)[0] for embedding in embeddings]
+                [results_queue.put(result) for result in results]
+                image_processer.camera_stable_flag = False
+                image_processer.sliding_window.clear()
+            except Exception:
+                logging.error("An error occurred", exc_info=True)
+                processed_frame_queue.put(contour_image)
         else:
             processed_frame_queue.put(contour_image)
 
@@ -98,8 +122,11 @@ def video_feed():
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
 if __name__ == '__main__':
-
-    model_interface = Embedding_generator()
-    hnsw_search = HNSW_search_tool(768, 'cosine', r'data\embeddings\hnsw_index_cos.bin', 50, r'data\embeddings\image_emb_metadata.json')
-    image_processer = Image_processer(median_frame_queue)
-    socketio.run(app, host='0.0.0.0', port=5000)
+    try:
+        model_interface = Embedding_generator()
+        hnsw_search = HNSW_search_tool(768, 'cosine', HNSW_FOLDER / 'hnsw_index_cos.bin', 50, HNSW_FOLDER / 'image_emb_metadata.json')
+        image_processer = Image_processer(median_frame_queue)
+        socketio.run(app, host='0.0.0.0', port=5000)
+        logging.info("Set up succesfully")
+    except Exception:
+        logging.error("An error occurred", exc_info=True)
