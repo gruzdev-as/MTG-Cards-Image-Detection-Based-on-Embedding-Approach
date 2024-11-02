@@ -1,3 +1,4 @@
+import argparse
 import threading
 import queue
 
@@ -13,7 +14,12 @@ from search import HNSW_search_tool
 app = Flask(__name__)
 socketio = SocketIO(app)
 
-CAMERA_IP_ADDRESS = '192.168.0.101:8080'
+parser = argparse.ArgumentParser(description="MTG Card Detector")
+parser.add_argument("-cip", "--camera_ip", type=str, default='192.168.0.101:8080', help="Camera IP with the port clarified")
+args = parser.parse_args()
+CAMERA_IP_ADDRESS = args.camera_ip
+print(CAMERA_IP_ADDRESS)
+
 CAMERA_URL = f'http://{CAMERA_IP_ADDRESS}/video'
 
 detection_frame_queue = queue.Queue(maxsize=1)
