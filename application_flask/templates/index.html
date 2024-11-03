@@ -22,6 +22,18 @@
         th {
             background-color: #f4f4f4;
         }
+        .delete-btn {
+            cursor: pointer;
+            color: red;
+            font-weight: bold;
+        }
+        .upload-btn {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -41,6 +53,7 @@
                 <th>Card Number</th>
                 <th>Card Set</th>
                 <th>Card Language</th>
+                <th>Action</th>
             </tr>
         </thead>
         <tbody>
@@ -48,20 +61,56 @@
         </tbody>
     </table>
 
+    <!-- Button to run the foo function -->
+    <button class="upload-btn" id="upload-btn">Upload Cards</button>
+
     <script>
         // Initialize SocketIO connection
         var socket = io();
 
-        // Listen for 'new_card' event from the backend
+        // Append new card to the table
         socket.on('new_card', function(card) {
-            var row = "<tr>" +
+            var row = "<tr data-card-number='" + card.card_number + "'>" +
                 "<td>" + card.card_name + "</td>" +
                 "<td>" + card.card_number + "</td>" +
                 "<td>" + card.card_set + "</td>" +
                 "<td>" + card.card_language + "</td>" +
+                "<td><span class='delete-btn' data-card-number='" + card.card_number + "'>X</span></td>" +
                 "</tr>";
-            $("#card-table tbody").append(row);  // Append the new card to the table
+            $("#card-table tbody").append(row);
         });
+
+        // Delete button click event
+        $(document).on('click', '.delete-btn', function() {
+            var cardNumber = $(this).data('card-number');
+
+            // Send AJAX request to delete card
+            $.ajax({
+                url: '/delete_card',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ card_number: cardNumber }),
+                success: function(response) {
+                    if (response.success) {
+                        $("tr[data-card-number='" + response.card_number + "']").remove();
+                    }
+                }
+            });
+        });
+
+        // Run foo function on button click
+        $('#upload-btn').click(function() {
+            $.ajax({
+                url: '/upload',  // Flask route to trigger the upload function
+                type: 'POST',
+                success: function() {
+                    alert('Upload function executed successfully!');  // Optionally notify the user
+                },
+                error: function(error) {
+                    alert('Error occurred: ' + error.responseText);
+                }
+                    });
+                });
     </script>
 </body>
 </html>

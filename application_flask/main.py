@@ -5,11 +5,12 @@ import threading
 import queue
 
 import cv2
+import pandas as pd
 
 from pathlib import Path
 from datetime import datetime
 
-from flask import Flask, render_template, Response
+from flask import Flask, render_template, Response, jsonify, request
 from flask_socketio import SocketIO, emit
 
 from model_inference import Embedding_generator
@@ -42,7 +43,7 @@ HNSW_FOLDER = args.hnsw_folder
 
 ### OTHER 
 CAMERA_URL = f'http://{CAMERA_IP_ADDRESS}/video'
-
+CARDS_RECOGNIZED = []
 detection_frame_queue = queue.Queue(maxsize=1)
 median_frame_queue = queue.Queue(maxsize=1)
 processed_frame_queue = queue.Queue(maxsize=1)
@@ -99,6 +100,7 @@ def gen_frames(camera_url):
 
         if not results_queue.empty():
             result = results_queue.get()
+            CARDS_RECOGNIZED.append(result)
             socketio.emit('new_card', result)
         
         if not processed_frame_queue.empty():
@@ -110,6 +112,30 @@ def gen_frames(camera_url):
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
+@app.route('/delete_card', methods=['POST'])
+def delete_card():
+    card_number = request.json.get('card_number')
+
+    global CARDS_RECOGNIZED
+    CARDS_RECOGNIZED = [card for card in CARDS_RECOGNIZED if int(card["card_number"]) != card_number]
+    socketio.emit('update_cards', CARDS_RECOGNIZED)
+
+    return jsonify({"success": True, "card_number": card_number})
+
+@app.route('/upload', methods=['POST'])
+def upload():
+    
+    if os.path.exists(r'data\card_data.csv'):
+        csv_file = pd.read_csv(r'data\card_data.csv')
+        new_cards = pd.DataFrame(CARDS_RECOGNIZED)
+        csv_file = pd.concat((csv_file, new_cards), axis=0)
+    else:
+        csv_file = pd.DataFrame(CARDS_RECOGNIZED)
+    
+    csv_file.to_csv(r'data\card_data.csv', index=False)
+
+    return jsonify({'message': 'Uploaded!'})
+    
 @app.route('/')
 def index():
     # The home page with the video feed
@@ -126,7 +152,8 @@ if __name__ == '__main__':
         model_interface = Embedding_generator()
         hnsw_search = HNSW_search_tool(768, 'cosine', HNSW_FOLDER / 'hnsw_index_cos.bin', 50, HNSW_FOLDER / 'image_emb_metadata.json')
         image_processer = Image_processer(median_frame_queue)
-        socketio.run(app, host='0.0.0.0', port=5000)
         logging.info("Set up succesfully")
+        socketio.run(app, host='0.0.0.0', port=5000)
+        logging.info("Connection Closed by User")
     except Exception:
         logging.error("An error occurred", exc_info=True)
