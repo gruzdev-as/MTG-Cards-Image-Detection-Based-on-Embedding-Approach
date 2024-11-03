@@ -42,14 +42,15 @@ To start the Flask-based solution:
 1) Set Up Your Phone Camera Stream:
     - Install the IP Webcam app on your phone.
     - Start the stream in the app and note your IP address.
-    - Open application_flask/main.py and set the CAMERA_IP_ADDRESS variable to your phone's IP address, enclosed in quotes (e.g., "http://192.168.0.101:8080")
-2) Run the Application:
-    - ```python application_flask/main.py```
+2) Run the Application using following flags:
+    - ```-cip``` or ```--camera_ip``` for camera IP address.
+    - ```-hnsw``` or ```--hnsw_folder``` for location of HNSW bin file and JSON metadata file.
+    - Example usage: ```python application_flask/main.py -cip 192.168.0.101:8080 -hnsw data\embeddings```
 3) Access the Application in Your Browser: Open your browser and go to "http://127.0.0.1:5000".
 
 ## Running inference in Jupyther 
 
-To run  experiments in the format of jupyther notebooks (offline) follow ```notebooks/...```
+To run experiments in the format of jupyther notebooks (offline) follow ```notebooks/...```
 
 ## Solution Outline 
 
@@ -87,3 +88,5 @@ To ensure stable recognition, we track frames over a 20-frame window, checking f
 2) Database Integration: I plan to connect a database for card storage, enabling automatic price fetching and potential trade setup.
 3) Improving Metadata: Expanding metadata for each card will enhance recognition and cataloging capabilities.
 
+## Release Notes 
+04.11.2024: Fixed some bugs. Added argparse and a proxy test method for uploading recognized cards. 
