@@ -2,6 +2,7 @@
 sql/
 .vscode
 pgdata
+mydockerenv.env
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

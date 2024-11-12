@@ -16,6 +16,7 @@ from flask_socketio import SocketIO, emit
 from model_inference import Embedding_generator
 from image_processing import Image_processer
 from search import HNSW_search_tool
+from pg_uploader import PG_DB_Loader
 
 ### FLASK 
 app = Flask(__name__)
@@ -37,9 +38,18 @@ logging.basicConfig(
 parser = argparse.ArgumentParser(description="MTG Card Detector")
 parser.add_argument("-cip", "--camera_ip", type=str, default='192.168.0.101:8080', help="Camera IP with the port clarified")
 parser.add_argument("-hnsw", "--hnsw_folder", type=Path, default=Path(r'data\embeddings'), help="A folder with HNSW bin file and metadata json")
+parser.add_argument('-pg', '--postgres', type=Path, default=Path('config'), help='Path for postgresql config file')
+
 args = parser.parse_args()
 CAMERA_IP_ADDRESS = args.camera_ip
 HNSW_FOLDER = args.hnsw_folder
+
+try:
+    with open(args.postgres / 'pgconfig.cfg', 'r') as f: 
+        PG_CONFIG = f.read()
+except FileNotFoundError:
+    PG_CONFIG = None
+    print('No pgconfig was found. Use csv data saving mechanism instead.')
 
 ### OTHER 
 CAMERA_URL = f'http://{CAMERA_IP_ADDRESS}/video'
@@ -125,14 +135,18 @@ def delete_card():
 @app.route('/upload', methods=['POST'])
 def upload():
     
-    if os.path.exists(r'data\card_data.csv'):
-        csv_file = pd.read_csv(r'data\card_data.csv')
-        new_cards = pd.DataFrame(CARDS_RECOGNIZED)
-        csv_file = pd.concat((csv_file, new_cards), axis=0)
+    if PG_CONFIG:
+        pgdb_loader.upload_recognized_data(pd.DataFrame(CARDS_RECOGNIZED))
+
     else:
-        csv_file = pd.DataFrame(CARDS_RECOGNIZED)
-    
-    csv_file.to_csv(r'data\card_data.csv', index=False)
+        if os.path.exists(r'data\card_data.csv'):
+            csv_file = pd.read_csv(r'data\card_data.csv')
+            new_cards = pd.DataFrame(CARDS_RECOGNIZED)
+            csv_file = pd.concat((csv_file, new_cards), axis=0)
+        else:
+            csv_file = pd.DataFrame(CARDS_RECOGNIZED)
+        
+        csv_file.to_csv(r'data\card_data.csv', index=False)
 
     return jsonify({'message': 'Uploaded!'})
     
@@ -152,6 +166,7 @@ if __name__ == '__main__':
         model_interface = Embedding_generator()
         hnsw_search = HNSW_search_tool(768, 'cosine', HNSW_FOLDER / 'hnsw_index_cos.bin', 50, HNSW_FOLDER / 'image_emb_metadata.json')
         image_processer = Image_processer(median_frame_queue)
+        pgdb_loader = PG_DB_Loader(PG_CONFIG)
         logging.info("Set up succesfully")
         socketio.run(app, host='0.0.0.0', port=5000)
         logging.info("Connection Closed by User")
