@@ -1,3 +1,9 @@
+#User-defined folders 
+sql/
+.vscode
+pgdata
+mydockerenv.env
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
