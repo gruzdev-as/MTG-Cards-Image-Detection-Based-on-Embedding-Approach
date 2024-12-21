@@ -53,6 +53,8 @@
                 <th>Card Number</th>
                 <th>Card Set</th>
                 <th>Card Language</th>
+                <th>Foil</th>
+                <th>Condition</th>
                 <th>Action</th>
             </tr>
         </thead>
@@ -75,6 +77,16 @@
                 "<td>" + card.card_number + "</td>" +
                 "<td>" + card.card_set + "</td>" +
                 "<td>" + card.card_language + "</td>" +
+                "<td><input type='checkbox' name='foil' value='foil'></td>" +
+                "<td>" +
+                    "<select name='condition'>" +
+                        "<option value='NM'>NM</option>" +
+                        "<option value='SP'>SP</option>" +
+                        "<option value='MP'>MP</option>" +
+                        "<option value='PL'>PL</option>" +
+                        "<option value='PO'>PO</option>" +
+                    "</select>" +
+                "</td>" +
                 "<td><span class='delete-btn' data-card-number='" + card.card_number + "'>X</span></td>" +
                 "</tr>";
             $("#card-table tbody").append(row);
@@ -98,19 +110,37 @@
             });
         });
 
-        // Run foo function on button click
+        // Run function on button click
         $('#upload-btn').click(function() {
+            // Collect table data
+            var tableData = [];
+            $('#card-table tbody tr').each(function() {
+                var row = $(this);
+                var cardData = {
+                    card_name: row.find('td:eq(0)').text(),
+                    card_number: row.find('td:eq(1)').text(),
+                    card_set: row.find('td:eq(2)').text(),
+                    card_language: row.find('td:eq(3)').text(),
+                    foil: row.find('td:eq(4) input[type="checkbox"]').is(':checked'),
+                    condition: row.find('td:eq(5) select').val()
+                };
+                tableData.push(cardData);
+            });
+
+            // Send table data to Flask backend
             $.ajax({
-                url: '/upload',  // Flask route to trigger the upload function
+                url: '/upload_table', // Flask route to handle this data
                 type: 'POST',
-                success: function() {
-                    alert('Upload function executed successfully!');  // Optionally notify the user
+                contentType: 'application/json',
+                data: JSON.stringify({ table: tableData }),
+                success: function(response) {
+                    alert('Table data uploaded successfully!');
                 },
                 error: function(error) {
                     alert('Error occurred: ' + error.responseText);
                 }
-                    });
-                });
+            });
+        });
     </script>
 </body>
 </html>

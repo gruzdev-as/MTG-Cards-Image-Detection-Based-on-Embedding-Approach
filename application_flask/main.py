@@ -3,6 +3,7 @@ import logging
 import os
 import threading
 import queue
+import yaml
 
 import cv2
 import pandas as pd
@@ -16,30 +17,27 @@ from flask_socketio import SocketIO, emit
 from model_inference import Embedding_generator
 from image_processing import Image_processer
 from search import HNSW_search_tool
+from pgconnector import PGDBconnector
+from logging_config import setup_logging 
 
 ### FLASK 
 app = Flask(__name__)
 socketio = SocketIO(app)
 
 ### LOGGING
-log_dir = "logs"
-os.makedirs(log_dir, exist_ok=True)
-log_file = os.path.join(log_dir, f"{datetime.now().strftime('%Y-%m-%d')}.log")
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.FileHandler(log_file),
-    ]
-)
+setup_logging()
+app_logger = logging.getLogger('app_logger')
 
 ### ARGPARSE
 parser = argparse.ArgumentParser(description="MTG Card Detector")
 parser.add_argument("-cip", "--camera_ip", type=str, default='192.168.0.101:8080', help="Camera IP with the port clarified")
 parser.add_argument("-hnsw", "--hnsw_folder", type=Path, default=Path(r'data\embeddings'), help="A folder with HNSW bin file and metadata json")
+parser.add_argument("-pg", "--postgres_config", type=Path, default=Path(r'data\pg_config.yaml'), help="A postgress config file")
 args = parser.parse_args()
 CAMERA_IP_ADDRESS = args.camera_ip
 HNSW_FOLDER = args.hnsw_folder
+with open(args.postgres_config, 'r') as file:
+    CONNECTION_PARAMS = yaml.load(file, Loader=yaml.loader.SafeLoader)
 
 ### OTHER 
 CAMERA_URL = f'http://{CAMERA_IP_ADDRESS}/video'
@@ -71,7 +69,7 @@ def get_contours_if_stable():
                 image_processer.camera_stable_flag = False
                 image_processer.sliding_window.clear()
             except Exception:
-                logging.error("An error occurred", exc_info=True)
+                app_logger.error("An error occurred", exc_info=True)
                 processed_frame_queue.put(contour_image)
         else:
             processed_frame_queue.put(contour_image)
@@ -122,19 +120,18 @@ def delete_card():
 
     return jsonify({"success": True, "card_number": card_number})
 
-@app.route('/upload', methods=['POST'])
-def upload():
+@app.route('/upload_table', methods=['POST'])
+def upload_table():
     
-    if os.path.exists(r'data\card_data.csv'):
-        csv_file = pd.read_csv(r'data\card_data.csv')
-        new_cards = pd.DataFrame(CARDS_RECOGNIZED)
-        csv_file = pd.concat((csv_file, new_cards), axis=0)
-    else:
-        csv_file = pd.DataFrame(CARDS_RECOGNIZED)
-    
-    csv_file.to_csv(r'data\card_data.csv', index=False)
+    # Parse JSON data from the request
+    data = request.get_json()
+    if 'table' in data:
+        table_data = data['table']
+        print("Received table data:", table_data)
 
-    return jsonify({'message': 'Uploaded!'})
+        return jsonify({"success": True, "received_data": table_data})
+    else:
+        return jsonify({"success": False, "message": "No table data received."}), 400
     
 @app.route('/')
 def index():
@@ -149,11 +146,12 @@ def video_feed():
 
 if __name__ == '__main__':
     try:
+        pgconnector = PGDBconnector(CONNECTION_PARAMS)
         model_interface = Embedding_generator()
         hnsw_search = HNSW_search_tool(768, 'cosine', HNSW_FOLDER / 'hnsw_index_cos.bin', 50, HNSW_FOLDER / 'image_emb_metadata.json')
         image_processer = Image_processer(median_frame_queue)
-        logging.info("Set up succesfully")
+        app_logger.info("Set up succesfully")
         socketio.run(app, host='0.0.0.0', port=5000)
-        logging.info("Connection Closed by User")
+        app_logger.info("Connection Closed by User")
     except Exception:
-        logging.error("An error occurred", exc_info=True)
+        app_logger.error("An error occurred", exc_info=True)
