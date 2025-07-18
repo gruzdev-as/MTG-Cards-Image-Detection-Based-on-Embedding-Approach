@@ -1,22 +1,26 @@
-import hnswlib
 import json
+from pathlib import Path
+from typing import Literal
 
-class HNSW_search_tool:
+import hnswlib
+from numpy import ndarray
 
-    def __init__(self, dim, space, hnsw_path, ef, json_path):
-        
+
+class HNSWSearchTool:
+    """Nearest neigbour searching tool."""
+
+    def __init__(self, dim:int, space:Literal["cosine", "l2"], hnsw_path:Path, ef:int, json_path:Path) -> None:
         self.hnsw_index = hnswlib.Index(space=space, dim=dim)
         self.hnsw_index.load_index(str(hnsw_path))
         self.hnsw_index.set_ef(ef)
 
-        with open(str(json_path), 'r') as f:
+        with Path(json_path).open("r") as f:
             self.image_metadata = json.load(f)
-        
-        print('Search Engine has loaded')
 
-    def search_in_hnsw(self, query_embedding, k=5):
-        
+        print("Search Engine has loaded")
+
+    def search_in_hnsw(self, query_embedding: ndarray, k: int=5) -> list[dict[str, str]]:
+        """Use hnsw index to retrieval info."""
         labels, distances = self.hnsw_index.knn_query(query_embedding, k=k)
-        results = [self.image_metadata[str(label)] for label in labels[0]]
-        
-        return results
+
+        return [self.image_metadata[str(label)] for label in labels[0]]

@@ -1,0 +1,24 @@
+[tool.ruff]
+# Enable/disable rules
+select = ["ALL"]
+ignore = ["E501", "T201", "D103", "D107", "D100", "INP001"]  # Optional: Add rules to ignore, e.g., ["E501"]
+
+# Line length
+line-length = 150
+
+# Target Python version
+target-version = "py310"
+
+# Exclude files or directories
+exclude = [
+    "__pycache__",
+    ".git",
+    ".venv",
+    "venv",
+    ".pytype",
+    "build",
+    "dist",
+]
+
+# Show fixable count at the end
+show-fixes = true

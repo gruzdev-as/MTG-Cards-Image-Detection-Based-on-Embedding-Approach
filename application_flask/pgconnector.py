@@ -1,21 +1,21 @@
-import psycopg2
 import logging
-from typing import Dict, List, Tuple
 
+import psycopg2
 from logging_config import setup_logging
 
 setup_logging()
-db_logger = logging.getLogger('db_logger')
+db_logger = logging.getLogger("db_logger")
 
-class PGDBconnector: 
 
-    def __init__(self, connection_params: Dict[str, str]):
+class PGDBconnector:
+    """Establish connect to the PG database."""
 
+    def __init__(self, connection_params: dict):
         self.conn = psycopg2.connect(**connection_params)
         self.cursor = self.conn.cursor()
-    
-    def add_card(self, card_data: Tuple[str | int]):
 
+    def add_card(self, card_data: tuple[str | int]) -> None:
+        """Insert card date into the database."""
         insert_query = """
             INSERT INTO cards (card_name, card_collection_number, card_set_name, 
                             card_set_code, card_language, card_rarity, 
@@ -30,8 +30,8 @@ class PGDBconnector:
             self.conn.rollback()
             db_logger.error(f"Error adding card {card_data[0]}: {e}")
 
-    def update_or_create_inventory(self, card_data: List[Tuple[int, int]]):
-
+    def update_or_create_inventory(self, card_data: list[tuple]) -> None:
+        """Update info in the database."""
         check_query = """
         SELECT quantity FROM card_inventory 
         WHERE card_id = %s AND card_condition = %s AND foil_flag = %s;
@@ -47,7 +47,7 @@ class PGDBconnector:
         """
 
         for card_id, card_condition, foil_flag, quantity in card_data:
-            try: 
+            try:
                 self.cursor.execute(check_query, (card_id, card_condition, foil_flag))
                 existing_inventory = self.cursor.fetchone()
                 if existing_inventory:
@@ -55,13 +55,15 @@ class PGDBconnector:
                     db_logger.info(f"Updated inventory for card_id {card_id} (Condition: {card_condition}, Foil: {foil_flag}) to {quantity}.")
                 else:
                     self.cursor.execute(insert_query, (card_id, card_condition, foil_flag, quantity))
-                    db_logger.info(f"Created inventory record for card_id {card_id} (Condition: {card_condition}, Foil: {foil_flag}) with quantity {quantity}.")
+                    db_logger.info(
+                        f"Created inventory record for card_id {card_id} (Condition: {card_condition}, Foil: {foil_flag}) with quantity {quantity}."
+                    )
                 self.conn.commit()
             except Exception as e:
                 self.conn.rollback()
                 db_logger.error(f"Error updating or creating inventory for card_id {card_id} (Condition: {card_condition}, Foil: {foil_flag}): {e}")
-    
-    def close_connection(self):
+
+    def close_connection(self) -> None:
         """Close the connection and cursor."""
         self.cursor.close()
         self.conn.close()
