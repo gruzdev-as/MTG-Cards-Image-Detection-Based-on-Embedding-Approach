@@ -71,7 +71,7 @@ def get_contours_if_stable() -> None:
                 image_processer.camera_stable_flag = False
                 image_processer.sliding_window.clear()
             except Exception:
-                app_logger.error("An error occurred", exc_info=True)
+                app_logger.exception("An error occurred")
                 processed_frame_queue.put(contour_image)
         else:
             processed_frame_queue.put(contour_image)
@@ -131,8 +131,7 @@ def upload_table() -> Response | tuple[Response, Literal[400]]:
         print("Received table data:", table_data)
 
         return jsonify({"success": True, "received_data": table_data})
-    else:
-        return jsonify({"success": False, "message": "No table data received."}), 400
+    return jsonify({"success": False, "message": "No table data received."}), 400
 
 
 @app.route("/")
@@ -160,4 +159,4 @@ if __name__ == "__main__":
         socketio.run(app, host="0.0.0.0", port=5000)
         app_logger.info("Connection Closed by User")
     except Exception:
-        app_logger.error("An error occurred", exc_info=True)
+        app_logger.exception("An error occurred")

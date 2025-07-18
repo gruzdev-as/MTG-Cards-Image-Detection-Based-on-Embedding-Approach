@@ -9,7 +9,7 @@ from skimage.metrics import structural_similarity
 class ImageProcesser:
     """Using for processing images in a thread."""
 
-    def __init__(self, median_frame_queue: Queue) -> None:  # noqa: D107
+    def __init__(self, median_frame_queue: Queue) -> None:
         self.sliding_window = deque(maxlen=25)
 
         # Flags

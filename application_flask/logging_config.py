@@ -4,6 +4,8 @@ import logging
 def setup_logging():
     # DB Logger
     db_logger = logging.getLogger("db_logger")
+    for handler in db_logger.handlers[:]:
+        db_logger.removeHandler(handler)
     db_logger.setLevel(logging.INFO)
 
     db_file_handler = logging.FileHandler(r"logs/db_operations.log")
@@ -15,6 +17,8 @@ def setup_logging():
     db_logger.addHandler(db_file_handler)
 
     app_logger = logging.getLogger("app_logger")
+    for handler in app_logger.handlers[:]:
+        app_logger.removeHandler(handler)
     app_logger.setLevel(logging.INFO)
 
     app_file_handler = logging.FileHandler(r"logs/app_operations.log")

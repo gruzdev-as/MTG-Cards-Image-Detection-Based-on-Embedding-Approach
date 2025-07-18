@@ -28,7 +28,7 @@ class PGDBconnector:
             db_logger.info(f"Card '{card_data[0]}' added to the cards table.")
         except Exception as e:
             self.conn.rollback()
-            db_logger.error(f"Error adding card {card_data[0]}: {e}")
+            db_logger.exception(f"Error adding card {card_data[0]}: {e}")
 
     def update_or_create_inventory(self, card_data: list[tuple]) -> None:
         """Update info in the database."""
@@ -61,7 +61,7 @@ class PGDBconnector:
                 self.conn.commit()
             except Exception as e:
                 self.conn.rollback()
-                db_logger.error(f"Error updating or creating inventory for card_id {card_id} (Condition: {card_condition}, Foil: {foil_flag}): {e}")
+                db_logger.exception(f"Error updating or creating inventory for card_id {card_id} (Condition: {card_condition}, Foil: {foil_flag}): {e}")
 
     def close_connection(self) -> None:
         """Close the connection and cursor."""
