@@ -1,14 +1,20 @@
+import os
+
 import numpy as np
 import torch
+from dotenv import load_dotenv
 from transformers import CLIPModel, CLIPProcessor
+
+load_dotenv()  # Load variables from .env
+token = os.getenv("HF_TOKEN")
 
 
 class EmbeddingGenerator:
     """Generate cropped image embedding using CLIP."""
 
     def __init__(self) -> None:
-        self.model = CLIPModel.from_pretrained("openai/clip-vit-large-patch14")
-        self.processor = CLIPProcessor.from_pretrained("openai/clip-vit-large-patch14")
+        self.model = CLIPModel.from_pretrained("openai/clip-vit-large-patch14", token=token)
+        self.processor = CLIPProcessor.from_pretrained("openai/clip-vit-large-patch14", token=token)
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model.to(self.device)
         print("Model has loaded")

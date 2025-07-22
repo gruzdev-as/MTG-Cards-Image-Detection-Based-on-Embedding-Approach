@@ -26,7 +26,7 @@ app_logger = logging.getLogger("app_logger")
 
 ### ARGPARSE
 parser = argparse.ArgumentParser(description="MTG Card Detector")
-parser.add_argument("-cip", "--camera_ip", type=str, default="192.168.0.100:8080", help="Camera IP with the port clarified")
+parser.add_argument("-cip", "--camera_ip", type=str, default="192.168.0.102:8080", help="Camera IP with the port clarified")
 parser.add_argument("-hnsw", "--hnsw_folder", type=Path, default=Path(r"data\embeddings"), help="A folder with HNSW bin file and metadata json")
 parser.add_argument("-pg", "--postgres_config", type=Path, default=Path(r"data\pg_config.yaml"), help="A postgress config file")
 args = parser.parse_args()
@@ -144,7 +144,7 @@ def index() -> str:
 def video_feed() -> Response:
     # Video streaming route that streams frames with both original and perspective-corrected images
     return Response(
-        gen_frames(CAMERA_URL),  # Replace with your IP webcam URL
+        gen_frames(CAMERA_URL),
         mimetype="multipart/x-mixed-replace; boundary=frame",
     )
 

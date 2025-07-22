@@ -33,15 +33,21 @@ class ImageProcesser:
             accumulated = np.mean(self.sliding_window, axis=0).astype(np.uint8)
             self.similarity = structural_similarity(frame_gray, accumulated, full=False)
 
-    def find_big_contours(self, frame: np.ndarray, epsilon_factor: float=0.05, min_area: int=50_000) -> tuple[np.ndarray, list]:
+    def find_big_contours(self,
+        frame: np.ndarray,
+        epsilon_factor: float=0.05,
+        min_area: int=50_000,
+        max_aspect_ratio: int=1,
+        ) -> tuple[np.ndarray, list]:
         """Detect contours on an image using OpenCV and keeps only those that are rectangular-like.
 
         Args:
             frame (np.array): The frame captured from the camera on which contours are detected.
             epsilon_factor (float, optional): Factor for approximating arcs in contours.
-                A lower value results in a more accurate approximation. Defaults to 0.02.
+                A lower value results in a more accurate approximation. Defaults to 0.05.
             min_area (int, optional): Minimum area for contours to be kept. This is
-                empirically determined to filter out smaller, irrelevant contours. Defaults to 2000.
+                empirically determined to filter out smaller, irrelevant contours. Defaults to 50_000.
+            max_aspect_ratio (int, optional): Maximum contour aspact ratio to be recognized. Defaults to 1.
 
         Returns:
             Tuple[np.array, list]: A tuple where:
@@ -55,6 +61,12 @@ class ImageProcesser:
             total_pixels = thresh.shape[0] * thresh.shape[1]
             return non_zero_pixels / total_pixels
 
+        def _validate_contour(contour: np.ndarray) -> bool:
+            area = cv2.contourArea(contour)
+            x, y, w, h = cv2.boundingRect(approx)
+            aspect_ratio = float(w) / h
+            return area >= min_area and aspect_ratio <= max_aspect_ratio
+
         gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
         blurred = cv2.GaussianBlur(gray, (15, 15), 0)
         _, thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
@@ -63,16 +75,15 @@ class ImageProcesser:
         if nonzero_ratio > 0.5:
             _, thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
-        contours, hierarchy = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         contours_to_keep = []
 
         for contour in contours:
             epsilon = epsilon_factor * cv2.arcLength(contour, closed=True)
             approx = cv2.approxPolyDP(contour, epsilon, closed=True)
-            area = cv2.contourArea(contour)
-            if len(approx) != 4 or area < min_area:
+            if len(approx) != 4 or not _validate_contour(approx):
                 continue
-            contours_to_keep.append(contour)
+            contours_to_keep.append(approx)
 
         contour_image = frame.copy()
         cv2.drawContours(contour_image, contours_to_keep, -1, (0, 255, 0), 15)
@@ -100,12 +111,13 @@ class ImageProcesser:
         """Crops a specified contour from an image and applies perspective correction.
 
         Args:
-            image (np.ndarray): _description_
-            contour (np.ndarray): _description_
-            target_size (tuple[int, int] | None, optional): _description_. Defaults to None.
+            image (np.ndarray): The frame that has a contour to crop and warp.
+            contour (np.ndarray): The contour for cropping.
+            target_size (tuple[int, int] | None, optional): Target size after croping.
+                Defaults to None.
 
         Returns:
-            np.ndarray: _description_
+            np.ndarray: The croped and warped image for embedding gen.
 
         """
         epsilon = 0.05 * cv2.arcLength(contour, closed=True)
@@ -129,7 +141,4 @@ class ImageProcesser:
         M = cv2.getPerspectiveTransform(approx, destination)
         warped_image = cv2.warpPerspective(image, M, (width, height))
 
-        if target_size:
-            warped_image = cv2.resize(warped_image, target_size)
-
-        return warped_image
+        return cv2.resize(warped_image, target_size) if target_size else warped_image

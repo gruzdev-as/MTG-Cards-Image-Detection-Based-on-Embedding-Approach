@@ -1,31 +1,42 @@
 import logging
+from pathlib import Path
 
 
-def setup_logging():
-    # DB Logger
-    db_logger = logging.getLogger("db_logger")
-    for handler in db_logger.handlers[:]:
-        db_logger.removeHandler(handler)
-    db_logger.setLevel(logging.INFO)
+def setup_logging() -> None:
+    """
+    Set up dedicated loggers for database and application operations.
+    Ensures clean handler setup to prevent duplicate logs.
+    """
 
-    db_file_handler = logging.FileHandler(r"logs/db_operations.log")
-    db_file_handler.setLevel(logging.INFO)
+    log_dir = Path("logs")
+    log_dir.mkdir(exist_ok=True)
 
-    db_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-    db_file_handler.setFormatter(db_formatter)
+    _setup_logger(
+        name="db_logger",
+        log_file=log_dir / "db_operations.log",
+    )
+    _setup_logger(
+        name="app_logger",
+        log_file=log_dir / "app_operations.log",
+    )
 
-    db_logger.addHandler(db_file_handler)
 
-    app_logger = logging.getLogger("app_logger")
-    for handler in app_logger.handlers[:]:
-        app_logger.removeHandler(handler)
-    app_logger.setLevel(logging.INFO)
+def _setup_logger(name: str, log_file: Path) -> None:
+    """Help to set up an individual logger."""
+    logger = logging.getLogger(name)
 
-    app_file_handler = logging.FileHandler(r"logs/app_operations.log")
-    app_file_handler.setLevel(logging.INFO)
+    # Remove existing handlers to prevent duplicates
+    for handler in logger.handlers[:]:
+        logger.removeHandler(handler)
 
-    app_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-    app_file_handler.setFormatter(app_formatter)
+    logger.setLevel(logging.INFO)
 
-    # Add the file handler to the main app logger
-    app_logger.addHandler(app_file_handler)
+    logger.propagate = False
+
+    file_handler = logging.FileHandler(str(log_file))
+    file_handler.setLevel(logging.INFO)
+
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    file_handler.setFormatter(formatter)
+
+    logger.addHandler(file_handler)
