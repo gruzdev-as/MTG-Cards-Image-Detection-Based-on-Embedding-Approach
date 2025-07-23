@@ -74,10 +74,15 @@
         socket.on('new_card', function(card) {
             var row = "<tr data-card-number='" + card.card_number + "'>" +
                 "<td>" + card.card_name + "</td>" +
-                "<td>" + card.card_number + "</td>" +
+                "<td>" + card.card_collector_number + "</td>" +
                 "<td>" + card.card_set + "</td>" +
                 "<td>" + card.card_language + "</td>" +
-                "<td><input type='checkbox' name='foil' value='foil'></td>" +
+                "<td>" +
+                    "<select name='foil_type'>" +
+                        "<option value='nonfoil'>Non Foil</option>" +
+                        "<option value='foil'>Foil</option>" +
+                        "<option value='etched'>Etched Foil</option>" +
+                    "</select>" +
                 "<td>" +
                     "<select name='condition'>" +
                         "<option value='NM'>NM</option>" +
@@ -94,17 +99,18 @@
 
         // Delete button click event
         $(document).on('click', '.delete-btn', function() {
-            var cardNumber = $(this).data('card-number');
+            var $row = $(this).closest('tr');
+            var rowIndex = $row.index(); // 0-based
 
             // Send AJAX request to delete card
             $.ajax({
                 url: '/delete_card',
                 type: 'POST',
                 contentType: 'application/json',
-                data: JSON.stringify({ card_number: cardNumber }),
+                data: JSON.stringify({ row_index: rowIndex }),
                 success: function(response) {
                     if (response.success) {
-                        $("tr[data-card-number='" + response.card_number + "']").remove();
+                        $row.remove();
                     }
                 }
             });
@@ -117,12 +123,8 @@
             $('#card-table tbody tr').each(function() {
                 var row = $(this);
                 var cardData = {
-                    card_name: row.find('td:eq(0)').text(),
-                    card_number: row.find('td:eq(1)').text(),
-                    card_set: row.find('td:eq(2)').text(),
-                    card_language: row.find('td:eq(3)').text(),
-                    foil: row.find('td:eq(4) input[type="checkbox"]').is(':checked'),
-                    condition: row.find('td:eq(5) select').val()
+                    foil_type: row.find('td:eq(4) select').val(),
+                    card_condition: row.find('td:eq(5) select').val()
                 };
                 tableData.push(cardData);
             });

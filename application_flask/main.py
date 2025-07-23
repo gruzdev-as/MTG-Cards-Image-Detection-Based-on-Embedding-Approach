@@ -105,7 +105,7 @@ def gen_frames(camera_url:str) -> Generator[Any]:
         if not processed_frame_queue.empty():
             frame = processed_frame_queue.get()
 
-        ret, buffer = cv2.imencode(".jpg", frame)
+        _, buffer = cv2.imencode(".jpg", frame)
         frame = buffer.tobytes()
 
         yield (b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + frame + b"\r\n")
@@ -113,25 +113,29 @@ def gen_frames(camera_url:str) -> Generator[Any]:
 
 @app.route("/delete_card", methods=["POST"])
 def delete_card() -> Response:
-    card_number = request.json.get("card_number")
+    idx_to_remove = request.json.get("row_index")
 
-    global CARDS_RECOGNIZED
-    CARDS_RECOGNIZED = [card for card in CARDS_RECOGNIZED if int(card["card_number"]) != card_number]
+    CARDS_RECOGNIZED.pop(idx_to_remove)
     socketio.emit("update_cards", CARDS_RECOGNIZED)
 
-    return jsonify({"success": True, "card_number": card_number})
+    return jsonify({"success": True, "card_number": idx_to_remove})
 
 
 @app.route("/upload_table", methods=["POST"])
 def upload_table() -> Response | tuple[Response, Literal[400]]:
     # Parse JSON data from the request
     data = request.get_json()
-    if "table" in data:
-        table_data = data["table"]
-        print("Received table data:", table_data)
-
+    table_data = data["table"]
+    try:
+        for card_item_data, card_data in zip(table_data, CARDS_RECOGNIZED,  strict=True):
+            processed_card_data = pgconnector.prepare_card_data(card_data)
+            card_id = pgconnector.add_card(processed_card_data)
+            card_item_data["card_id"] = card_id
+            pgconnector.update_or_create_inventory(**card_item_data)
         return jsonify({"success": True, "received_data": table_data})
-    return jsonify({"success": False, "message": "No table data received."}), 400
+    except Exception:
+        app_logger.exception("An error while uploading")
+        return jsonify({"success": False, "message": "No table data received."}), 400
 
 
 @app.route("/")
@@ -153,10 +157,11 @@ if __name__ == "__main__":
     try:
         pgconnector = PGDBconnector(CONNECTION_PARAMS)
         model_interface = EmbeddingGenerator()
-        hnsw_search = HNSWSearchTool(768, "cosine", HNSW_FOLDER / "hnsw_index_cos.bin", 50, HNSW_FOLDER / "image_emb_metadata.json")
+        hnsw_search = HNSWSearchTool(768, "cosine", HNSW_FOLDER / "hnsw_index_cos.bin", 50, HNSW_FOLDER / "image_emb_metadata_new.json")
         image_processer = ImageProcesser(median_frame_queue)
         app_logger.info("Set up succesfully")
         socketio.run(app, host="0.0.0.0", port=5000)
+        pgconnector.close_connection()
         app_logger.info("Connection Closed by User")
     except Exception:
         app_logger.exception("An error occurred")
